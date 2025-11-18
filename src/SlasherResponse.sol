@@ -3,26 +3,27 @@ pragma solidity ^0.8.20;
 
 contract SlasherResponse {
     event SlashingAlert(
-        address indexed operator,
-        uint256 slashingCount,
+        bytes32 evidence,
+        address operator,
+        uint256 count,
         uint256 threshold,
-        string note,
-        uint256 timestamp
+        uint256 blockNumber,
+        uint256 chainId
     );
 
-    // Called by Drosera relay after trap collects payload
-    function respondWithSlashingAlert(
-        address operator,
-        uint256 slashingCount,
-        uint256 threshold,
-        string calldata note
-    ) external {
-        emit SlashingAlert(
-            operator,
-            slashingCount,
-            threshold,
-            note,
-            block.timestamp
-        );
+    function respond(bytes calldata payload) external {
+        (
+            bytes32 ev,
+            address op,
+            uint256 count,
+            uint256 th,
+            uint256 bn,
+            uint256 cid
+        ) = abi.decode(
+                payload,
+                (bytes32, address, uint256, uint256, uint256, uint256)
+            );
+
+        emit SlashingAlert(ev, op, count, th, bn, cid);
     }
 }

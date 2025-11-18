@@ -1,0 +1,15 @@
+ethereum_rpc = "0xrpc.io/hoodi"
+drosera_rpc = "https://relay.hoodi.drosera.io"
+eth_chain_id = 560048
+drosera_address = "0x91cB447BaFc6e0EA0F4Fe056F5a9b1F14bb06e5D"
+
+[traps]
+
+[traps.slasher_risk]
+path = "out/SlasherRiskTrap.sol/SlasherRiskTrap.json"
+response_contract = "0x1eC729307958907BFda6100b4fA41f8eA0144884"
+response_function = "respond(bytes)"
+block_sample_size = 5
+cooldown_period_blocks = 0
+private_trap = true
+whitelist = ["0x14e424df0c35686CF58fC7D05860689041D300F6"]

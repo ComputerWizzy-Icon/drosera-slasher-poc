@@ -2,65 +2,64 @@
 pragma solidity ^0.8.20;
 
 interface ITrap {
-    function collect(
-        bytes calldata payload
-    ) external returns (address responseContract, bytes memory responsePayload);
+    function collect() external view returns (bytes memory);
 
-    function shouldRespond(bytes calldata payload) external view returns (bool);
+    function shouldRespond(
+        bytes[] calldata data
+    ) external pure returns (bool, bytes memory);
 }
 
 contract SlasherRiskTrap is ITrap {
-    address public owner;
-    address public responseContract;
+    // Demo constants (stateless)
+    uint256 constant THRESHOLD = 3;
+    address constant OPERATOR = 0x14e424df0c35686CF58fC7D05860689041D300F6;
 
-    event ResponseContractUpdated(address indexed newAddress);
-    event Collected(address indexed responseContract, bytes payload);
+    // Drosera calls this to collect a payload
+    function collect() external view override returns (bytes memory) {
+        // stateless demo value
+        uint256 slashingCount = 5;
 
-    modifier onlyOwner() {
-        require(msg.sender == owner, "only owner");
-        _;
+        // encode exactly what the responder expects
+        // (bytes32 evidence, address operator, uint256 count, uint256 threshold, uint256 blockNumber, uint256 chainId)
+        bytes32 dummyEvidence = keccak256("demo");
+        uint256 blockNumber = block.number;
+        uint256 chainId = block.chainid;
+
+        return
+            abi.encode(
+                dummyEvidence,
+                OPERATOR,
+                slashingCount,
+                THRESHOLD,
+                blockNumber,
+                chainId
+            );
     }
 
-    constructor() {
-        owner = msg.sender;
-    }
-
-    function setResponseContract(address _response) external onlyOwner {
-        responseContract = _response;
-        emit ResponseContractUpdated(_response);
-    }
-
-    // Payload: abi.encode(operator, slashingCount, threshold, note)
+    // Drosera calls this with prior collected bytes
     function shouldRespond(
-        bytes calldata payload
-    ) external pure override returns (bool) {
-        (address operator, uint256 slashingCount, uint256 threshold, ) = abi
-            .decode(payload, (address, uint256, uint256, string));
+        bytes[] calldata data
+    ) external pure override returns (bool, bytes memory) {
+        if (data.length == 0) return (false, "");
 
-        return (operator != address(0) && slashingCount >= threshold);
-    }
+        bytes memory latest = data[0];
 
-    function collect(
-        bytes calldata payload
-    ) external override returns (address, bytes memory) {
-        require(responseContract != address(0), "response not set");
-
+        // decode only what was encoded in collect()
         (
+            bytes32 evidence,
             address operator,
-            uint256 slashingCount,
+            uint256 count,
             uint256 threshold,
-            string memory note
-        ) = abi.decode(payload, (address, uint256, uint256, string));
+            uint256 blockNumber,
+            uint256 chainId
+        ) = abi.decode(
+                latest,
+                (bytes32, address, uint256, uint256, uint256, uint256)
+            );
 
-        bytes memory callData = abi.encodeWithSignature(
-            "respondWithSlashingAlert(address,uint256,uint256,string)",
-            operator,
-            slashingCount,
-            threshold,
-            note
-        );
+        bool trigger = (operator != address(0) && count >= threshold);
+        bytes memory payload = trigger ? latest : bytes("");
 
-        emit Collected(responseContract, callData);
-        return (responseContract, callData);
+        return (trigger, payload);
     }
 }
